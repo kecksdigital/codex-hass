@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.18] - 2026-07-11
+
+### Fixed
+- Removed the unsupported Remote Control option: Home Assistant containers use the npm Codex install and cannot complete ChatGPT Desktop device pairing
+
+## [0.2.17] - 2026-07-11
+
+### Changed
+- Upgraded the managed default model to `gpt-5.6-sol` and enabled bounded startup CLI updates
+- Added managed `sol`, `terra`, and `luna` profile files with `xhigh`, `high`, and `medium` reasoning effort
+- Made autonomous full-access root sessions the default for trusted installations
+- Added selectable Web App and Codex Remote Control connection modes
+
 All notable changes to this project will be documented in this file.
 
 ## [0.2.15] - 2026-05-31
