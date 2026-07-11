@@ -30,7 +30,7 @@ configuration:
   default_model:
     name: Modelo Padrão
     description: >-
-      Modelo persistente inicial para o Codex. A App inicia com gpt-5.4,
+      Modelo persistente inicial para o Codex. A App inicia com gpt-5.6-sol,
       e os usuários ainda podem trocar o modelo durante a sessão com /model.
   codex_permissions:
     name: Nível de Acesso do Codex
@@ -56,6 +56,11 @@ configuration:
       Segundos máximos para aguardar a atualização opcional do Codex CLI na
       inicialização. Aplica-se apenas quando a atualização automática está
       habilitada.
+  run_as_root:
+    name: Executar Codex como root
+    description: >-
+      Executa sessões de terminal como root. Concede acesso completo ao
+      contêiner e deve ser usado somente em instalações confiáveis.
 
 network:
   7681/tcp: Terminal Web (ttyd)

@@ -18,6 +18,7 @@ codex_permissions="$(jq -r '.codex_permissions // "workspace"' /data/options.jso
 codex_approval_policy="$(jq -r '.codex_approval_policy // "on-request"' /data/options.json)"
 auto_update_codex="$(jq -r '.auto_update_codex // false' /data/options.json)"
 codex_update_timeout="$(jq -r '.codex_update_timeout // 300' /data/options.json)"
+run_as_root="$(jq -r '.run_as_root // false' /data/options.json)"
 case "$codex_update_timeout" in
   *[!0-9]*|'') codex_update_timeout=300 ;;
 esac
@@ -33,6 +34,7 @@ export CODEX_ENABLE_MCP="$enable_mcp"
 export CODEX_DEFAULT_MODEL="$default_model"
 export CODEX_PERMISSIONS="$codex_permissions"
 export CODEX_APPROVAL_POLICY="$codex_approval_policy"
+export CODEX_RUN_AS_ROOT="$run_as_root"
 export CODEX_HA_URL="http://supervisor/core"
 export CODEX_SUPERVISOR_TOKEN_FILE="/tmp/codex/ha-token"
 

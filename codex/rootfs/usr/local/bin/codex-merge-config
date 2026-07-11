@@ -135,6 +135,32 @@ def repair_incompatible_codex_values(config):
     return repaired
 
 
+ROLE_PROFILES = {
+    "sol": "xhigh",
+    "terra": "high",
+    "luna": "medium",
+}
+
+
+def write_role_profiles(config_dir, model, sandbox_mode, approval_policy):
+    """Write selectable Codex profile layers beside the user config."""
+    for profile, reasoning_effort in ROLE_PROFILES.items():
+        profile_path = config_dir / f"profile-{profile}.config.toml"
+        profile_config = {
+            "model": model,
+            "model_reasoning_effort": reasoning_effort,
+            "sandbox_mode": sandbox_mode,
+            "approval_policy": approval_policy,
+        }
+        lines = [
+            "# Managed by the Home Assistant Codex App.",
+            f"# Launch with: codex --profile {profile}",
+            "",
+        ]
+        emit_table(lines, [], profile_config)
+        profile_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+
+
 def main():
     if len(sys.argv) not in (4, 5, 6):
         print(
@@ -254,6 +280,13 @@ def main():
         config.pop("mcp_servers", None)
     if not metadata:
         config.pop("__homeassistant_app", None)
+
+    write_role_profiles(
+        config_path.parent,
+        default_model or "gpt-5.6-sol",
+        managed_sandbox_mode or "danger-full-access",
+        managed_approval_policy or "never",
+    )
 
     lines = [
         "# Codex user configuration",

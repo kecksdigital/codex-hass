@@ -64,10 +64,16 @@ default_model="${CODEX_DEFAULT_MODEL:-}"
 enable_mcp="${CODEX_ENABLE_MCP:-true}"
 codex_permissions="${CODEX_PERMISSIONS:-workspace}"
 codex_approval_policy="${CODEX_APPROVAL_POLICY:-on-request}"
+run_as_root="${CODEX_RUN_AS_ROOT:-false}"
 session_uid=22000
 system_user="codex"
 session_gid=0
 session_path="${user_npm_bin}:${PATH:-/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin}"
+
+if [[ "$run_as_root" == "true" ]]; then
+  session_uid=0
+  system_user="root"
+fi
 
 mkdir -p "$user_codex_home" "$user_root" "$user_npm_cache" "$user_npm_bin" || fail_open_shell "$?" "Unable to create Codex state directories."
 
@@ -107,6 +113,7 @@ cleanup_config_lock
 trap - EXIT
 
 chown "$session_uid:$session_gid" "${user_codex_home}/config.toml" 2>/dev/null || true
+chown "$session_uid:$session_gid" "${user_codex_home}"/profile-*.config.toml 2>/dev/null || true
 chown -h "$session_uid:$session_gid" "${user_codex_home}/AGENTS.md" 2>/dev/null || true
 
 if [[ ! -d "$work_dir" ]]; then
@@ -135,6 +142,7 @@ session_env=(
   "CODEX_ENABLE_MCP=$enable_mcp"
   "CODEX_PERMISSIONS=$codex_permissions"
   "CODEX_APPROVAL_POLICY=$codex_approval_policy"
+  "CODEX_RUN_AS_ROOT=$run_as_root"
   "CODEX_USER_ID=$safe_user"
   "CODEX_WORK_DIR=$work_dir"
   "LOGNAME=$system_user"
