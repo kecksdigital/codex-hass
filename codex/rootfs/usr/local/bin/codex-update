@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -u
+
+timeout_seconds="${1:-300}"
+update_log="/tmp/codex/codex-update.log"
+root_npm_cache="/tmp/codex/npm-root-cache"
+update_lock="/tmp/codex/codex-update.lock"
+
+mkdir -p /tmp/codex "$root_npm_cache"
+chmod 700 /tmp/codex "$root_npm_cache"
+
+if ! mkdir "$update_lock" 2>/dev/null; then
+  echo "[WARN] Another Codex CLI update is already running; skipping this request"
+  exit 1
+fi
+
+cleanup() {
+  rm -rf "$root_npm_cache" "$update_lock"
+}
+trap cleanup EXIT
+
+echo "[INFO] Updating Codex CLI with npm install -g @openai/codex@latest (timeout ${timeout_seconds}s)"
+timeout_status=0
+timeout "$timeout_seconds" env NPM_CONFIG_CACHE="$root_npm_cache" \
+  npm install -g @openai/codex@latest >"$update_log" 2>&1 || timeout_status=$?
+if [[ "$timeout_status" -eq 0 ]]; then
+  echo "[INFO] Codex CLI update completed: $(codex --version 2>/dev/null || echo unknown)"
+  exit 0
+fi
+
+echo "[WARN] Codex CLI update failed or timed out with exit code ${timeout_status}; continuing with installed version"
+tail -n 10 "$update_log" 2>/dev/null | sed 's/^/[WARN] update log: /' || true
+exit "$timeout_status"

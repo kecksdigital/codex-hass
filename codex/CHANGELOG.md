@@ -2,10 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased] - 2026-07-14
+## [0.2.16] - 2026-07-14
 
 ### Added
-- Documented the design for requesting a one-shot Codex CLI update from the add-on configuration, including the retry cycle.
+- Added a one-shot `update_codex_cli` option that updates the Codex CLI on the next App start and records when the request has been consumed.
+- Added shared update handling for one-shot and automatic Codex CLI updates, including bounded timeout, temporary npm cache, and failure logging.
+- Documented how to request and retry a manual Codex CLI update from the App configuration.
 
 ## [0.2.15] - 2026-05-31
 

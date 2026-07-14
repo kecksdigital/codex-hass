@@ -78,6 +78,7 @@ When Codex or a prompt mentions `/config`, treat it as `/homeassistant` in this 
 | `codex_permissions` | `workspace` | Selects Codex local sandbox behavior |
 | `codex_approval_policy` | `on-request` | Selects when Codex asks before running actions |
 | `auto_update_codex` | `false` | Optionally updates Codex CLI at startup |
+| `update_codex_cli` | `false` | Requests one Codex CLI update on the next add-on start |
 | `codex_update_timeout` | `300` | Maximum seconds for the optional startup update |
 
 ## Models
@@ -182,6 +183,15 @@ npm install -g @openai/codex@latest
 ```
 
 The update is bounded by `codex_update_timeout`. If the update fails or times out, the App continues with the image-installed Codex version and logs the failure.
+
+To request a single manual update from the add-on configuration page, enable
+`update_codex_cli`, save the options, and restart the Codex App. The App runs
+the same bounded npm update once, logs the installed version or failure, and
+records that the request was consumed. Disable the option after the restart;
+to retry after a failure, save it as disabled first, then enable it again.
+
+`update_codex_cli` is a one-shot request. `auto_update_codex` remains the
+persistent setting for updating Codex at every App start.
 
 When you run npm global installs from the interactive terminal, the App uses a persistent user-owned npm cache and prefix under the Codex user's home directory. That keeps `npm install -g @openai/codex@latest` writable for the unprivileged runtime user and makes the installed `codex` binary available on `PATH` in later sessions.
 

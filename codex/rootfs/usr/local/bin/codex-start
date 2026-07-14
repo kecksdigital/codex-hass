@@ -17,6 +17,7 @@ default_model="$(jq -r '.default_model // ""' /data/options.json)"
 codex_permissions="$(jq -r '.codex_permissions // "workspace"' /data/options.json)"
 codex_approval_policy="$(jq -r '.codex_approval_policy // "on-request"' /data/options.json)"
 auto_update_codex="$(jq -r '.auto_update_codex // false' /data/options.json)"
+update_codex_cli="$(jq -r '.update_codex_cli // false' /data/options.json)"
 codex_update_timeout="$(jq -r '.codex_update_timeout // 300' /data/options.json)"
 case "$codex_update_timeout" in
   *[!0-9]*|'') codex_update_timeout=300 ;;
@@ -72,22 +73,35 @@ printf '%s' "${SUPERVISOR_TOKEN:-}" > "$CODEX_SUPERVISOR_TOKEN_FILE"
 chmod 600 "$CODEX_SUPERVISOR_TOKEN_FILE"
 unset SUPERVISOR_TOKEN
 
-if [[ "$auto_update_codex" == "true" ]]; then
-  update_log="/tmp/codex/codex-update.log"
-  root_npm_cache="/tmp/codex/npm-root-cache"
-  mkdir -p "$root_npm_cache"
-  chmod 700 "$root_npm_cache"
-  echo "[INFO] Updating Codex CLI with npm install -g @openai/codex@latest (timeout ${codex_update_timeout}s)"
-  if timeout "$codex_update_timeout" env NPM_CONFIG_CACHE="$root_npm_cache" npm install -g @openai/codex@latest >"$update_log" 2>&1; then
-    echo "[INFO] Codex CLI update completed: $(codex --version 2>/dev/null || echo unknown)"
-  else
-    update_status=$?
-    echo "[WARN] Codex CLI update failed or timed out with exit code ${update_status}; continuing with installed version"
-    tail -n 10 "$update_log" 2>/dev/null | sed 's/^/[WARN] update log: /' || true
+update_state_file="$CODEX_MANAGED_ROOT/update_codex_cli.state"
+one_shot_update_attempted=false
+if [[ "$update_codex_cli" == "true" ]]; then
+  previous_update_request="false"
+  if [[ -f "$update_state_file" ]]; then
+    previous_update_request="$(cat "$update_state_file")"
   fi
-  rm -rf "$root_npm_cache"
+
+  if [[ "$previous_update_request" != "true" ]]; then
+    one_shot_update_attempted=true
+    /usr/local/bin/codex-update "$codex_update_timeout" || true
+    state_tmp="${update_state_file}.tmp.$$"
+    printf 'true\n' > "$state_tmp"
+    mv -f "$state_tmp" "$update_state_file"
+  else
+    echo "[INFO] Codex CLI one-shot update already consumed - using installed version"
+  fi
 else
-  echo "[INFO] auto_update_codex disabled - using image-installed Codex CLI: $(codex --version 2>/dev/null || echo unknown)"
+  state_tmp="${update_state_file}.tmp.$$"
+  printf 'false\n' > "$state_tmp"
+  mv -f "$state_tmp" "$update_state_file"
+fi
+
+if [[ "$auto_update_codex" == "true" && "$one_shot_update_attempted" != "true" ]]; then
+  /usr/local/bin/codex-update "$codex_update_timeout" || true
+elif [[ "$auto_update_codex" == "true" ]]; then
+  echo "[INFO] Automatic Codex CLI update satisfied by the pending one-shot update"
+else
+  echo "[INFO] auto_update_codex disabled - using installed Codex CLI: $(codex --version 2>/dev/null || echo unknown)"
 fi
 
 cat > "$CODEX_MANAGED_ROOT/AGENTS.md" <<'EOF'

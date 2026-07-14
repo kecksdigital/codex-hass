@@ -48,11 +48,16 @@ configuration:
     description: >-
       Check for the latest Codex CLI on startup with a bounded npm install.
       Disabled by default so startup remains predictable.
+  update_codex_cli:
+    name: Update Codex CLI now
+    description: >-
+      Run one update of the Codex CLI on the next add-on start. Save this
+      option, restart the add-on, then turn it off after the update request is consumed.
   codex_update_timeout:
     name: Codex Update Timeout
     description: >-
       Maximum seconds to wait for the optional Codex CLI startup update.
-      Applies only when auto-update is enabled.
+      Applies to automatic and one-shot updates.
 
 network:
   7681/tcp: Web Terminal (ttyd)
