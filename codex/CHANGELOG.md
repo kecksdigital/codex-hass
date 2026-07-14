@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased] - 2026-07-14
+
+### Added
+- Documented the design for requesting a one-shot Codex CLI update from the add-on configuration, including the retry cycle.
+
 ## [0.2.15] - 2026-05-31
 
 ### Fixed
