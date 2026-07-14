@@ -50,12 +50,16 @@ configuration:
       Procura a versão mais recente do Codex CLI na inicialização com uma
       instalação npm limitada por tempo. Desabilitado por padrão para manter a
       inicialização previsível.
+  update_codex_cli:
+    name: Atualizar o Codex CLI agora
+    description: >-
+      Executa uma atualização do Codex CLI na próxima inicialização do app.
+      Salve esta opção, reinicie o app e desative-a depois que a solicitação for consumida.
   codex_update_timeout:
     name: Tempo limite da atualização
     description: >-
       Segundos máximos para aguardar a atualização opcional do Codex CLI na
-      inicialização. Aplica-se apenas quando a atualização automática está
-      habilitada.
+      inicialização. Aplica-se às atualizações automáticas e únicas.
 
 network:
   7681/tcp: Terminal Web (ttyd)
