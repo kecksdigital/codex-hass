@@ -26,12 +26,20 @@ repair_codex_config() {
 }
 
 if command -v codex >/dev/null 2>&1; then
+  codex_command="$(command -v codex)"
   while true; do
     repair_codex_config
-    codex
+    "$codex_command"
     codex_status=$?
     if [[ "$codex_status" -eq 0 ]]; then
       break
+    fi
+
+    if [[ "$codex_status" -eq 126 && "$codex_command" != "/usr/local/bin/codex" && -x /usr/local/bin/codex ]]; then
+      echo
+      echo "[WARN] Updated Codex CLI at ${codex_command} is not executable; falling back to the image-installed version."
+      codex_command="/usr/local/bin/codex"
+      continue
     fi
 
     echo

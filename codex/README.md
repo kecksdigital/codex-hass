@@ -181,7 +181,11 @@ Enable `auto_update_codex` if you want the App to run this on startup:
 npm install -g @openai/codex@latest
 ```
 
-The update is bounded by `codex_update_timeout`. If the update fails or times out, the App continues with the image-installed Codex version and logs the failure.
+The update is bounded by `codex_update_timeout`. It is installed as the
+unprivileged `codex` user into the persistent npm prefix under the Codex home,
+so a successful update survives App restarts and image upgrades. If the update
+fails, times out, or cannot execute, the App continues with the image-installed
+Codex version and logs the failure.
 
 When you run npm global installs from the interactive terminal, the App uses a persistent user-owned npm cache and prefix under the Codex user's home directory. That keeps `npm install -g @openai/codex@latest` writable for the unprivileged runtime user and makes the installed `codex` binary available on `PATH` in later sessions.
 

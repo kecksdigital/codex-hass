@@ -68,4 +68,8 @@ profile codex flags=(attach_disconnected,mediate_deleted) {
 
   # Node.js modules
   /usr/lib/node_modules/** ixmr,
+
+  # User-installed npm binaries and packages in the persistent Codex home
+  /data/codex-home/users/*/.local/bin/** ixr,
+  /data/codex-home/users/*/.local/lib/node_modules/** ixmr,
 }
