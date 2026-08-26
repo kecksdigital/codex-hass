@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.16] - 2026-08-26
+
+### Fixed
+- Preserve an explicit `enable_mcp: false` App option so the bundled Home Assistant MCP server remains disabled
+- Report the effective bundled MCP state clearly during startup
+- Limit routine ttyd and libwebsockets connection logging to warnings and errors
+
 ## [0.2.15] - 2026-05-31
 
 ### Fixed
