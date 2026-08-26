@@ -12,7 +12,7 @@ fi
 theme="$(jq -r '.terminal_theme // "dark"' /data/options.json)"
 session_persist="$(jq -r '.session_persistence // false' /data/options.json)"
 work_dir="$(jq -r '.working_directory // "/homeassistant"' /data/options.json)"
-enable_mcp="$(jq -r '.enable_mcp // true' /data/options.json)"
+enable_mcp="$(jq -r '.enable_mcp' /data/options.json)"
 default_model="$(jq -r '.default_model // ""' /data/options.json)"
 codex_permissions="$(jq -r '.codex_permissions // "workspace"' /data/options.json)"
 codex_approval_policy="$(jq -r '.codex_approval_policy // "on-request"' /data/options.json)"
@@ -171,10 +171,10 @@ else
 fi
 if [[ "$enable_mcp" == "true" ]]; then
   CODEX_HOME="$validate_home" codex mcp get homeassistant >/dev/null
-  echo "[INFO] Home Assistant MCP configured for Codex home"
+  echo '[INFO] Bundled MCP server registered: "homeassistant" (voska/hass-mcp)'
 else
   CODEX_HOME="$validate_home" codex mcp list >/dev/null
-  echo "[INFO] Home Assistant MCP disabled"
+  echo '[INFO] Bundled MCP server disabled: "homeassistant"'
 fi
 rm -rf "$validate_home"
 trap - EXIT
@@ -186,6 +186,7 @@ else
 fi
 
 exec ttyd \
+  --debug 3 \
   --port 7681 \
   --writable \
   --ping-interval 30 \
