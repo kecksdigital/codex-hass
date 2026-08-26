@@ -190,6 +190,7 @@ exec ttyd \
   --writable \
   --ping-interval 30 \
   --max-clients 5 \
+  --index /usr/share/ttyd/mobile-index.html \
   -t "fontSize=${font_size}" \
   -t fontFamily=Monaco,Consolas,monospace \
   -t scrollback=5000 \

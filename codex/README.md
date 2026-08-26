@@ -13,6 +13,7 @@ It is designed as a Home Assistant-native App, not a copied terminal wrapper. Th
 5. The App generates user-level Codex defaults in `~/.codex/config.toml`.
 6. The App generates `~/.codex/AGENTS.md` with Home Assistant path mapping, log commands, and MCP notes.
 7. If MCP is enabled, Codex gets a managed `homeassistant` MCP server that talks to Home Assistant through `hass-mcp`.
+8. On touch devices and narrow screens, the terminal shows an extra key bar and keeps Codex output in the browser's scrollback.
 
 The App keeps OpenAI credentials out of Home Assistant options. Codex signs in using its own CLI authentication flow and stores its own auth state in the persistent Codex home.
 
@@ -64,6 +65,33 @@ The useful paths are:
 | `/backup` | Backups | Read-only |
 
 When Codex or a prompt mentions `/config`, treat it as `/homeassistant` in this App.
+
+## Mobile Terminal Keys
+
+On touch devices and screens up to 768 pixels wide, the terminal displays an
+extra key bar:
+
+```text
+Esc  Tab  Ctrl  Alt  ←  ↓  ↑  →  PgUp  PgDn
+```
+
+`Esc`, `Tab`, and the arrow keys send their terminal sequences immediately.
+`Ctrl` and `Alt` remain active for exactly the next key-bar or software-keyboard
+input, then switch off automatically. This supports combinations such as
+`Ctrl+C`, `Alt` plus a typed character, and modified arrow keys without requiring
+a mobile terminal keyboard such as Termius.
+
+Swipe down over the terminal to read earlier output and swipe up to move toward
+the latest output. The frontend converts each gesture into deterministic page
+navigation, so it does not depend on the Home Assistant mobile WebView's native
+scroll handling. `PgUp` and `PgDn` perform the same actions.
+
+When session persistence is enabled, page navigation automatically enters and
+controls tmux copy mode. Without tmux, it goes directly to the Codex TUI. Web-
+terminal Codex sessions also disable the alternate screen so output can remain
+in xterm's 5,000-line scrollback. This override applies only to the Home
+Assistant web terminal; Codex started manually in a shell continues to use its own
+TUI configuration.
 
 ## App Options
 
