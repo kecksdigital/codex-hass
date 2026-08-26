@@ -35,6 +35,8 @@ export CODEX_PERMISSIONS="$codex_permissions"
 export CODEX_APPROVAL_POLICY="$codex_approval_policy"
 export CODEX_HA_URL="http://supervisor/core"
 export CODEX_SUPERVISOR_TOKEN_FILE="/tmp/codex/ha-token"
+export CODEX_MCP_CONFIG="$CODEX_MANAGED_ROOT/mcp-servers.json"
+export CODEX_MCP_ENVIRONMENT="$CODEX_MANAGED_ROOT/mcp-environment.json"
 
 mkdir -p \
   "$CODEX_STATE_ROOT/users" \
@@ -42,6 +44,15 @@ mkdir -p \
   /tmp/codex
 
 chmod 700 /tmp/codex
+
+/usr/local/bin/codex-prepare-mcp \
+  /data/options.json \
+  "$CODEX_MCP_CONFIG" \
+  "$CODEX_MCP_ENVIRONMENT"
+chown 0:0 "$CODEX_MCP_CONFIG"
+chown 22000:0 "$CODEX_MCP_ENVIRONMENT"
+chmod 644 "$CODEX_MCP_CONFIG"
+chmod 600 "$CODEX_MCP_ENVIRONMENT"
 
 if [[ -d /homeassistant/.codex-home && ! -d "$CODEX_STATE_ROOT/legacy-global-home" ]]; then
   cp -a /homeassistant/.codex-home "$CODEX_STATE_ROOT/legacy-global-home"
@@ -125,6 +136,8 @@ When users mention `/config/...`, translate to `/homeassistant/...`
 
 Use the `homeassistant` MCP server to query entities and call services when MCP is enabled. The Supervisor token stays outside the interactive shell and is only available through the privileged `hass-mcp` helper path.
 
+Additional remote MCP servers configured in the App options are also managed in `~/.codex/config.toml`. Their bearer tokens and any additional configured environment variables are supplied to the Codex process environment.
+
 ## Reading Home Assistant Logs
 
 **Log levels (from most to least verbose):**
@@ -163,7 +176,13 @@ validate_home="$CODEX_MANAGED_ROOT/validate-home"
 rm -rf "$validate_home"
 mkdir -p "$validate_home"
 trap 'rm -rf "$validate_home"' EXIT
-/usr/local/bin/codex-merge-config "${validate_home}/config.toml" "$default_model" "$enable_mcp" "$codex_permissions" "$codex_approval_policy"
+/usr/local/bin/codex-merge-config \
+  "${validate_home}/config.toml" \
+  "$default_model" \
+  "$enable_mcp" \
+  "$codex_permissions" \
+  "$codex_approval_policy" \
+  "$CODEX_MCP_CONFIG"
 if CODEX_HOME="$validate_home" codex debug prompt-input --help >/dev/null 2>&1; then
   CODEX_HOME="$validate_home" codex debug prompt-input "startup validation" >/dev/null
 else

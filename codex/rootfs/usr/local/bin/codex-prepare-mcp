@@ -1,0 +1,138 @@
+#!/usr/bin/env python3
+import json
+import os
+import re
+import sys
+import tempfile
+from pathlib import Path
+
+
+ENV_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def fail(message):
+    print(f"[ERROR] {message}", file=sys.stderr)
+    return 1
+
+
+def write_json_atomic(path, value, mode):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(
+        dir=path.parent,
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+        text=True,
+    )
+    tmp_path = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(value, handle, ensure_ascii=False, indent=2)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chmod(tmp_path, mode)
+        os.replace(tmp_path, path)
+    finally:
+        if tmp_path.exists():
+            tmp_path.unlink()
+
+
+def bearer_env_name(server_name):
+    normalized = re.sub(r"[^A-Za-z0-9_]", "_", server_name).upper()
+    if not normalized or normalized[0].isdigit():
+        normalized = f"_{normalized}"
+    return f"CODEX_MCP_{normalized}_BEARER_TOKEN"
+
+
+def read_string(mapping, key, context, required=False):
+    value = mapping.get(key, "")
+    if not isinstance(value, str):
+        raise ValueError(f"{context}.{key} must be a string")
+    if required and not value.strip():
+        raise ValueError(f"{context}.{key} must not be empty")
+    return value
+
+
+def prepare(options):
+    configured_servers = options.get("mcp_servers", [])
+    configured_environment = options.get("environment_variables", [])
+    if not isinstance(configured_servers, list):
+        raise ValueError("mcp_servers must be a list")
+    if not isinstance(configured_environment, list):
+        raise ValueError("environment_variables must be a list")
+
+    servers = []
+    environment = []
+    server_names = set()
+    environment_names = set()
+
+    for index, item in enumerate(configured_environment):
+        context = f"environment_variables[{index}]"
+        if not isinstance(item, dict):
+            raise ValueError(f"{context} must be an object")
+        name = read_string(item, "name", context, required=True)
+        value = read_string(item, "value", context)
+        if not ENV_NAME_RE.fullmatch(name):
+            raise ValueError(f"{context}.name is not a valid environment variable name: {name!r}")
+        if name in environment_names:
+            raise ValueError(f"duplicate environment variable: {name}")
+        environment_names.add(name)
+        environment.append({"name": name, "value": value})
+
+    for index, item in enumerate(configured_servers):
+        context = f"mcp_servers[{index}]"
+        if not isinstance(item, dict):
+            raise ValueError(f"{context} must be an object")
+        name = read_string(item, "name", context, required=True)
+        url = read_string(item, "url", context, required=True)
+        bearer_token = read_string(item, "bearer_token", context)
+        if name == "homeassistant":
+            raise ValueError("mcp_servers name 'homeassistant' is reserved for the built-in server")
+        if name in server_names:
+            raise ValueError(f"duplicate MCP server name: {name}")
+        if not url.startswith(("http://", "https://")):
+            raise ValueError(f"{context}.url must start with http:// or https://")
+
+        server = {"name": name, "url": url}
+        if bearer_token:
+            env_name = bearer_env_name(name)
+            if env_name in environment_names:
+                raise ValueError(
+                    f"generated bearer-token environment variable conflicts with environment_variables: {env_name}"
+                )
+            environment_names.add(env_name)
+            environment.append({"name": env_name, "value": bearer_token})
+            server["bearer_token_env_var"] = env_name
+
+        server_names.add(name)
+        servers.append(server)
+
+    return servers, environment
+
+
+def main():
+    if len(sys.argv) != 4:
+        print(
+            "usage: codex-prepare-mcp <options_path> <servers_path> <environment_path>",
+            file=sys.stderr,
+        )
+        return 1
+
+    options_path = Path(sys.argv[1])
+    servers_path = Path(sys.argv[2])
+    environment_path = Path(sys.argv[3])
+    try:
+        with options_path.open("r", encoding="utf-8") as handle:
+            options = json.load(handle)
+        if not isinstance(options, dict):
+            return fail("App options must contain a JSON object")
+        servers, environment = prepare(options)
+        write_json_atomic(servers_path, servers, 0o644)
+        write_json_atomic(environment_path, environment, 0o600)
+    except (OSError, json.JSONDecodeError, ValueError) as error:
+        return fail(f"Unable to prepare custom MCP configuration: {error}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

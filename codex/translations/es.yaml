@@ -56,6 +56,34 @@ configuration:
     description: >-
       Segundos máximos para esperar la actualización opcional de Codex CLI al
       iniciar. Solo aplica cuando la actualización automática está habilitada.
+  mcp_servers:
+    name: Servidores MCP remotos
+    description: >-
+      Servidores MCP HTTP Streamable que se añadirán a Codex. Para cada token
+      bearer no vacío, la App crea automáticamente una variable de entorno
+      protegida y configura bearer_token_env_var para ese servidor.
+    fields:
+      name:
+        name: Nombre del servidor
+        description: Nombre único del servidor MCP de Codex. homeassistant está reservado.
+      url:
+        name: URL del servidor
+        description: Endpoint MCP HTTP Streamable que comienza con http:// o https://.
+      bearer_token:
+        name: Token bearer
+        description: Token opcional que la App pasa automáticamente mediante una variable de entorno.
+  environment_variables:
+    name: Variables de entorno
+    description: >-
+      Variables de entorno adicionales para Codex y sus servidores MCP. Los
+      valores se tratan como secretos y están disponibles en sesiones de Codex.
+    fields:
+      name:
+        name: Nombre de la variable
+        description: Nombre de variable de entorno con letras, números y guiones bajos.
+      value:
+        name: Valor de la variable
+        description: Valor disponible para Codex y sus servidores MCP.
 
 network:
   7681/tcp: Terminal Web (ttyd)

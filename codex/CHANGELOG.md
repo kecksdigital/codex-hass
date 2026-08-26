@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.17] - 2026-08-26
+
+### Added
+- Add App options for managed remote Streamable HTTP MCP servers and additional Codex environment variables
+- Create a per-server environment variable and configure `bearer_token_env_var` whenever an MCP bearer token is supplied
+
+### Changed
+- Merge managed remote MCP servers into each persistent Codex user configuration and restore a pre-existing same-name server when App management is removed
+- Make configured environment variables available to Codex sessions without writing their values to `config.toml`
+
 ## [0.2.16] - 2026-08-26
 
 ### Fixed

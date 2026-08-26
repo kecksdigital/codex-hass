@@ -135,10 +135,48 @@ def repair_incompatible_codex_values(config):
     return repaired
 
 
+def load_managed_mcp_servers(path):
+    if path is None:
+        return []
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            loaded = json.load(handle)
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError(f"Unable to read managed MCP servers from {path}: {error}") from error
+
+    if not isinstance(loaded, list):
+        raise ValueError("Managed MCP server configuration must be a list")
+
+    servers = []
+    names = set()
+    for index, item in enumerate(loaded):
+        if not isinstance(item, dict):
+            raise ValueError(f"Managed MCP server {index} must be an object")
+        name = item.get("name")
+        url = item.get("url")
+        bearer_token_env_var = item.get("bearer_token_env_var")
+        if not isinstance(name, str) or not name:
+            raise ValueError(f"Managed MCP server {index} has an invalid name")
+        if name == "homeassistant":
+            raise ValueError("Managed MCP server name 'homeassistant' is reserved")
+        if name in names:
+            raise ValueError(f"Duplicate managed MCP server name: {name}")
+        if not isinstance(url, str) or not url.startswith(("http://", "https://")):
+            raise ValueError(f"Managed MCP server {name!r} has an invalid URL")
+        if bearer_token_env_var is not None and (
+            not isinstance(bearer_token_env_var, str) or not bearer_token_env_var
+        ):
+            raise ValueError(f"Managed MCP server {name!r} has an invalid bearer token environment variable")
+        names.add(name)
+        servers.append(item)
+    return servers
+
+
 def main():
-    if len(sys.argv) not in (4, 5, 6):
+    if len(sys.argv) not in (4, 5, 6, 7):
         print(
-            "usage: codex-merge-config <config_path> <default_model> <enable_mcp> [codex_permissions] [codex_approval_policy]",
+            "usage: codex-merge-config <config_path> <default_model> <enable_mcp> "
+            "[codex_permissions] [codex_approval_policy] [managed_mcp_path]",
             file=sys.stderr,
         )
         return 1
@@ -147,7 +185,14 @@ def main():
     default_model = sys.argv[2]
     enable_mcp = sys.argv[3].lower() == "true"
     codex_permissions = sys.argv[4] if len(sys.argv) >= 5 else "workspace"
-    codex_approval_policy = sys.argv[5] if len(sys.argv) == 6 else "on-request"
+    codex_approval_policy = sys.argv[5] if len(sys.argv) >= 6 else "on-request"
+    managed_mcp_path = Path(sys.argv[6]) if len(sys.argv) == 7 and sys.argv[6] else None
+
+    try:
+        managed_mcp_servers = load_managed_mcp_servers(managed_mcp_path)
+    except ValueError as error:
+        print(f"[ERROR] {error}", file=sys.stderr)
+        return 1
 
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config = load_existing_config(config_path)
@@ -249,6 +294,51 @@ def main():
             metadata["managed_homeassistant_mcp_backup"] = dict(existing_homeassistant)
         mcp_servers.pop("homeassistant", None)
         metadata.pop("managed_homeassistant_mcp", None)
+
+    previous_custom_names = metadata.get("managed_custom_mcp_servers", [])
+    if not isinstance(previous_custom_names, list):
+        previous_custom_names = []
+    previous_custom_names = {
+        name for name in previous_custom_names if isinstance(name, str) and name != "homeassistant"
+    }
+    custom_backups = metadata.get("managed_custom_mcp_backups", {})
+    if not isinstance(custom_backups, dict):
+        custom_backups = {}
+
+    desired_custom_servers = {server["name"]: server for server in managed_mcp_servers}
+    for name in previous_custom_names - desired_custom_servers.keys():
+        mcp_servers.pop(name, None)
+        backup = custom_backups.pop(name, None)
+        if isinstance(backup, dict):
+            mcp_servers[name] = backup
+
+    stdio_only_keys = ("command", "args", "env", "env_vars", "cwd", "experimental_environment")
+    for name, managed_server in desired_custom_servers.items():
+        existing = mcp_servers.get(name, {})
+        if not isinstance(existing, dict):
+            existing = {}
+        if name not in previous_custom_names and existing:
+            custom_backups[name] = dict(existing)
+
+        merged_server = dict(existing)
+        for key in stdio_only_keys:
+            merged_server.pop(key, None)
+        merged_server["url"] = managed_server["url"]
+        bearer_token_env_var = managed_server.get("bearer_token_env_var")
+        if bearer_token_env_var:
+            merged_server["bearer_token_env_var"] = bearer_token_env_var
+        else:
+            merged_server.pop("bearer_token_env_var", None)
+        mcp_servers[name] = merged_server
+
+    if desired_custom_servers:
+        metadata["managed_custom_mcp_servers"] = list(desired_custom_servers)
+    else:
+        metadata.pop("managed_custom_mcp_servers", None)
+    if custom_backups:
+        metadata["managed_custom_mcp_backups"] = custom_backups
+    else:
+        metadata.pop("managed_custom_mcp_backups", None)
 
     if not mcp_servers:
         config.pop("mcp_servers", None)
