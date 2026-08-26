@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.18] - 2026-08-26
+
+### Added
+- Add optional OpenSSH access for the existing unprivileged `codex` user with simultaneous password and public-key authentication
+- Add a disabled-by-default `22/tcp` port mapping, persistent SSH host keys under `/data/ssh`, and App options for enabling SSH and configuring credentials
+
+### Changed
+- Share the persistent Codex home, managed MCP configuration, and environment variables between web-terminal and SSH sessions
+
 ## [0.2.17] - 2026-08-26
 
 ### Added

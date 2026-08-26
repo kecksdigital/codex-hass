@@ -14,6 +14,7 @@ It is designed as a Home Assistant-native App, not a copied terminal wrapper. Th
 6. The App generates `~/.codex/AGENTS.md` with Home Assistant path mapping, log commands, and MCP notes.
 7. If MCP is enabled, Codex gets a managed `homeassistant` MCP server that talks to Home Assistant through `hass-mcp`.
 8. Remote MCP servers and their environment variables configured in the App options are added to every Codex session.
+9. If SSH is enabled, OpenSSH accepts logins as `codex` on container port `22` and uses the same persistent home as the web terminal.
 
 By default, the App keeps OpenAI credentials out of Home Assistant options. Codex signs in using its own CLI authentication flow and stores its own auth state in the persistent Codex home. Credentials deliberately added through `environment_variables` or an MCP `bearer_token` are stored as App options.
 
@@ -80,8 +81,34 @@ When Codex or a prompt mentions `/config`, treat it as `/homeassistant` in this 
 | `codex_approval_policy` | `on-request` | Selects when Codex asks before running actions |
 | `auto_update_codex` | `false` | Optionally updates Codex CLI at startup |
 | `codex_update_timeout` | `300` | Maximum seconds for the optional startup update |
+| `ssh_enabled` | `false` | Starts the SSH server when enabled |
+| `ssh_password` | empty | Sets the `codex` SSH password; the UI masks this field |
+| `authorized_keys` | `[]` | Lists public keys accepted for the `codex` SSH user |
 | `mcp_servers` | `[]` | Adds managed remote Streamable HTTP MCP servers to Codex |
-| `environment_variables` | `[]` | Adds environment variables to Codex sessions |
+| `environment_variables` | `[]` | Adds environment variables to web-terminal and SSH Codex sessions |
+
+## SSH Access
+
+SSH is disabled by default. To enable it:
+
+1. Set `ssh_enabled: true` in the App options.
+2. Set `ssh_password`, add one or more `authorized_keys`, or configure both.
+3. In the App's **Network** settings, map container port `22/tcp` to an unused host port such as `2222`.
+4. Restart the App.
+
+Then connect from another machine:
+
+```bash
+ssh -p 2222 codex@homeassistant.local
+```
+
+At startup the App reports the effective host mapping, for example host port
+`2222` mapped to container port `22`. Port `22` remains the internal OpenSSH
+port; clients connect to the host port selected in the Network section.
+
+The SSH user is fixed as `codex` so it can reuse the existing unprivileged web-terminal identity. SSH and the web terminal share `/data/codex-home/users/anonymous`, including Codex authentication, configuration, and the persistent user npm prefix. Password and public-key login may be enabled at the same time. If neither is configured, the daemon can start but no remote login credential is available.
+
+SSH host keys persist under `/data/ssh`, so the server fingerprint remains stable across App restarts and image updates. Root login, empty-password login, X11 forwarding, agent forwarding, TCP forwarding, tunnels, and user-supplied SSH environments are disabled.
 
 ## Models
 
@@ -152,7 +179,7 @@ environment_variables:
 
 When `bearer_token` is set, the App automatically creates an environment variable named `CODEX_MCP_<SERVER_NAME>_BEARER_TOKEN` and writes that name as the server's `bearer_token_env_var` in Codex configuration. For example, the server above uses `CODEX_MCP_EXAMPLE_BEARER_TOKEN`. The token value is not written to `config.toml`.
 
-Entries under `environment_variables` are also exported to Codex sessions. Variable names must use letters, digits, and underscores and cannot start with a digit. Their values and bearer tokens are stored in Home Assistant App options and are available to the unprivileged `codex` runtime user, so only add credentials that Codex and its MCP servers are intended to use.
+Entries under `environment_variables` are also exported to Codex in both web-terminal and SSH sessions. Variable names must use letters, digits, and underscores and cannot start with a digit. Their values and bearer tokens are stored in Home Assistant App options and are available to the unprivileged `codex` runtime user, so only add credentials that Codex and its MCP servers are intended to use.
 
 Removing a managed MCP server from the App options removes it from Codex on the next App restart. If an existing user-defined server had the same name before App management began, its previous configuration is restored.
 

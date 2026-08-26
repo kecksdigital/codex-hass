@@ -53,6 +53,21 @@ configuration:
     description: >-
       Maximum seconds to wait for the optional Codex CLI startup update.
       Applies only when auto-update is enabled.
+  ssh_enabled:
+    name: Enable SSH
+    description: >-
+      Start OpenSSH for the unprivileged codex user. You must also map
+      container port 22 in the Network section before it is reachable.
+  ssh_password:
+    name: SSH Password
+    description: >-
+      Password for the codex SSH user. Leave empty to disable password login.
+      Public-key login can be used at the same time.
+  authorized_keys:
+    name: SSH Authorized Keys
+    description: >-
+      Public keys allowed to log in as codex. Add one complete public key per
+      list entry.
   mcp_servers:
     name: Remote MCP Servers
     description: >-
@@ -74,7 +89,7 @@ configuration:
     description: >-
       Additional environment variables for Codex and its MCP servers. Values
       are treated as secrets in the App options and are available to Codex
-      sessions.
+      terminal and SSH sessions.
     fields:
       name:
         name: Variable Name
@@ -85,3 +100,4 @@ configuration:
 
 network:
   7681/tcp: Web Terminal (ttyd)
+  22/tcp: SSH server (disabled by default)

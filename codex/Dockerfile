@@ -32,6 +32,7 @@ RUN apk add --no-cache \
     nodejs \
     npm \
     openssh-client \
+    openssh-server \
     openssl \
     p7zip \
     ripgrep \
@@ -67,7 +68,7 @@ RUN case "${BUILD_ARCH}" in \
     curl -fsSL "https://github.com/home-assistant/cli/releases/latest/download/ha_${HA_ARCH}" -o /usr/local/bin/ha && \
     chmod +x /usr/local/bin/ha
 
-RUN adduser -D -H -u 22000 -G root codex && \
+RUN adduser -D -H -h /data/codex-home/users/anonymous -s /bin/bash -u 22000 -G root codex && \
     mkdir -p \
     /data/codex-home \
     /data/codex-managed \
@@ -76,7 +77,7 @@ RUN adduser -D -H -u 22000 -G root codex && \
 
 COPY rootfs/ /
 
-RUN chmod +x \
+RUN chmod 755 \
     /usr/local/bin/hass-mcp-wrapper \
     /usr/local/bin/hass-mcp-root-helper \
     /usr/local/bin/codex-merge-config \
@@ -84,6 +85,9 @@ RUN chmod +x \
     /usr/local/bin/codex-shell \
     /usr/local/bin/codex-session \
     /usr/local/bin/codex-start \
+    && chmod 644 \
+    /etc/profile.d/codex.sh \
+    /etc/ssh/sshd_config \
     && chmod 440 /etc/sudoers.d/codex-hass-mcp
 
 RUN cat > /etc/tmux.conf << 'EOF'

@@ -18,6 +18,21 @@ codex_permissions="$(jq -r '.codex_permissions // "workspace"' /data/options.jso
 codex_approval_policy="$(jq -r '.codex_approval_policy // "on-request"' /data/options.json)"
 auto_update_codex="$(jq -r '.auto_update_codex // false' /data/options.json)"
 codex_update_timeout="$(jq -r '.codex_update_timeout // 300' /data/options.json)"
+ssh_enabled="$(jq -r '.ssh_enabled // false' /data/options.json)"
+ssh_host_port=""
+if [[ "$ssh_enabled" == "true" && -n "${SUPERVISOR_TOKEN:-}" ]]; then
+  if ! ssh_host_port="$(
+    curl \
+      --fail \
+      --silent \
+      --max-time 10 \
+      --header "Authorization: Bearer ${SUPERVISOR_TOKEN}" \
+      http://supervisor/addons/self/info 2>/dev/null \
+      | jq -r '.data.network["22/tcp"] // empty'
+  )"; then
+    ssh_host_port=""
+  fi
+fi
 case "$codex_update_timeout" in
   *[!0-9]*|'') codex_update_timeout=300 ;;
 esac
@@ -202,6 +217,148 @@ if [[ "$theme" == "dark" ]]; then
   colors='background=#1e1e2e,foreground=#cdd6f4,cursor=#f5e0dc'
 else
   colors='background=#eff1f5,foreground=#4c4f69,cursor=#dc8a78'
+fi
+
+if [[ "$ssh_enabled" == "true" ]]; then
+  chown 0:0 /data/options.json
+  chmod 600 /data/options.json
+
+  session_options_tmp="$(mktemp "$CODEX_MANAGED_ROOT/.session-options.XXXXXX")"
+  jq '{
+    working_directory: (.working_directory // "/homeassistant"),
+    default_model: (.default_model // ""),
+    enable_mcp: .enable_mcp,
+    codex_permissions: (.codex_permissions // "workspace"),
+    codex_approval_policy: (.codex_approval_policy // "on-request")
+  }' /data/options.json > "$session_options_tmp"
+  chmod 644 "$session_options_tmp"
+  mv -f "$session_options_tmp" "$CODEX_MANAGED_ROOT/session-options.json"
+
+  ssh_user_root="$CODEX_STATE_ROOT/users/anonymous"
+  ssh_user_codex_home="$ssh_user_root/.codex"
+  ssh_user_npm_cache="$ssh_user_root/.npm"
+  ssh_user_npm_prefix="$ssh_user_root/.local"
+  ssh_user_npm_bin="$ssh_user_npm_prefix/bin"
+  ssh_authorized_keys_dir="$ssh_user_root/.ssh"
+  ssh_state_root="/data/ssh"
+
+  if [[ -L "$ssh_authorized_keys_dir" ]]; then
+    echo "[ERROR] Refusing to use a symbolic link as the SSH authorized-keys directory" >&2
+    exit 1
+  fi
+
+  mkdir -p \
+    "$ssh_user_codex_home" \
+    "$ssh_user_npm_cache" \
+    "$ssh_user_npm_bin" \
+    "$ssh_authorized_keys_dir" \
+    "$ssh_state_root" \
+    /run/sshd
+
+  chown -R 22000:0 "$ssh_user_root"
+  chmod 700 \
+    "$ssh_user_root" \
+    "$ssh_user_codex_home" \
+    "$ssh_user_npm_cache" \
+    "$ssh_user_npm_prefix" \
+    "$ssh_authorized_keys_dir"
+  chmod 755 "$ssh_user_npm_bin"
+  chown 0:0 "$ssh_state_root"
+  chmod 700 "$ssh_state_root"
+
+  rm -f "$ssh_user_codex_home/AGENTS.md"
+  if [[ -f "$CODEX_MANAGED_ROOT/AGENTS.md" ]]; then
+    ln -sfn "$CODEX_MANAGED_ROOT/AGENTS.md" "$ssh_user_codex_home/AGENTS.md"
+    chown -h 22000:0 "$ssh_user_codex_home/AGENTS.md"
+  fi
+
+  /usr/local/bin/codex-merge-config \
+    "$ssh_user_codex_home/config.toml" \
+    "$default_model" \
+    "$enable_mcp" \
+    "$codex_permissions" \
+    "$codex_approval_policy" \
+    "$CODEX_MCP_CONFIG"
+  chown 22000:0 "$ssh_user_codex_home/config.toml"
+
+  authorized_keys_tmp="$(mktemp "$ssh_authorized_keys_dir/.authorized_keys.XXXXXX")"
+  while IFS= read -r authorized_key; do
+    if [[ -z "$authorized_key" ]]; then
+      continue
+    fi
+    if [[ "$authorized_key" == *$'\r'* ]]; then
+      echo "[ERROR] SSH authorized keys must not contain carriage returns" >&2
+      rm -f "$authorized_keys_tmp"
+      exit 1
+    fi
+
+    read -r authorized_key_type authorized_key_blob _ <<< "$authorized_key"
+    case "$authorized_key_type" in
+      ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp256|ecdsa-sha2-nistp384|ecdsa-sha2-nistp521|sk-ecdsa-sha2-nistp256@openssh.com|sk-ssh-ed25519@openssh.com) ;;
+      *)
+        echo "[ERROR] Unsupported or malformed SSH public key type" >&2
+        rm -f "$authorized_keys_tmp"
+        exit 1
+        ;;
+    esac
+    if [[ ! "$authorized_key_blob" =~ ^[A-Za-z0-9+/]+={0,3}$ ]]; then
+      echo "[ERROR] Malformed SSH public key data" >&2
+      rm -f "$authorized_keys_tmp"
+      exit 1
+    fi
+    printf '%s\n' "$authorized_key" >> "$authorized_keys_tmp"
+  done < <(jq -r '.authorized_keys // [] | .[]' /data/options.json)
+  chown 22000:0 "$authorized_keys_tmp"
+  chmod 600 "$authorized_keys_tmp"
+  mv -f "$authorized_keys_tmp" "$ssh_authorized_keys_dir/authorized_keys"
+
+  if ! jq -e '(.ssh_password // "") | (type == "string") and ((contains("\n") or contains("\r")) | not)' /data/options.json >/dev/null; then
+    echo "[ERROR] SSH password must be a single-line string" >&2
+    exit 1
+  fi
+  ssh_password="$(jq -r '.ssh_password // ""' /data/options.json)"
+  if [[ -n "$ssh_password" ]]; then
+    if ! printf '%s:%s\n' codex "$ssh_password" | chpasswd >/dev/null 2>&1; then
+      echo "[ERROR] Unable to set the SSH password for user codex" >&2
+      exit 1
+    fi
+  else
+    passwd -d codex >/dev/null
+  fi
+  unset ssh_password
+
+  generate_ssh_host_key() {
+    local key_type="$1"
+    local key_path="$2"
+    shift 2
+    if [[ ! -s "$key_path" ]]; then
+      ssh-keygen -q -t "$key_type" "$@" -N '' -f "$key_path"
+    fi
+  }
+
+  generate_ssh_host_key ed25519 "$ssh_state_root/ssh_host_ed25519_key"
+  generate_ssh_host_key rsa "$ssh_state_root/ssh_host_rsa_key" -b 3072
+  chown 0:0 \
+    "$ssh_state_root/ssh_host_ed25519_key" \
+    "$ssh_state_root/ssh_host_ed25519_key.pub" \
+    "$ssh_state_root/ssh_host_rsa_key" \
+    "$ssh_state_root/ssh_host_rsa_key.pub"
+  chmod 600 \
+    "$ssh_state_root/ssh_host_ed25519_key" \
+    "$ssh_state_root/ssh_host_rsa_key"
+  chmod 644 \
+    "$ssh_state_root/ssh_host_ed25519_key.pub" \
+    "$ssh_state_root/ssh_host_rsa_key.pub"
+
+  /usr/sbin/sshd -t -f /etc/ssh/sshd_config
+  /usr/sbin/sshd -f /etc/ssh/sshd_config
+  if [[ "$ssh_host_port" =~ ^[0-9]+$ ]]; then
+    echo "[INFO] SSH server started for user codex on host port ${ssh_host_port} (mapped to container port 22)"
+  else
+    echo "[INFO] SSH server started for user codex on container port 22; no host port mapping detected"
+  fi
+else
+  echo "[INFO] SSH server disabled"
 fi
 
 exec ttyd \

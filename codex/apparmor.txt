@@ -5,8 +5,10 @@ profile codex flags=(attach_disconnected,mediate_deleted) {
 
   # Capabilities needed for terminal and outbound networking
   capability net_raw,
+  capability net_bind_service,
   capability setgid,
   capability setuid,
+  capability sys_chroot,
   capability chown,
   capability fowner,
   capability dac_override,
@@ -26,6 +28,16 @@ profile codex flags=(attach_disconnected,mediate_deleted) {
 
   # System files (read-only)
   /etc/** r,
+  # Password changes for the fixed, unprivileged SSH account
+  /etc/.pwd.lock rwk,
+  /etc/passwd rwk,
+  /etc/passwd+ rw,
+  /etc/passwd- rw,
+  /etc/shadow rwk,
+  /etc/shadow+ rw,
+  /etc/shadow- rw,
+  link /etc/passwd- -> /etc/passwd,
+  link /etc/shadow- -> /etc/shadow,
   /usr/** r,
   /lib/** r,
   /proc/** r,
@@ -65,6 +77,10 @@ profile codex flags=(attach_disconnected,mediate_deleted) {
   /root/ r,
   /root/** rwk,
   /tmp/** rwk,
+
+  # OpenSSH privilege-separation runtime directory
+  /run/sshd/ rw,
+  /run/sshd/** rwk,
 
   # Node.js modules
   /usr/lib/node_modules/** ixmr,

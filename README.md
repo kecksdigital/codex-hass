@@ -22,6 +22,7 @@ Manual install:
 
 - OpenAI Codex CLI running in Home Assistant.
 - A web terminal served through Home Assistant ingress.
+- Optional LAN/VPN SSH access as the same unprivileged `codex` user.
 - Prebuilt GHCR images for faster installs and Home Assistant updates.
 - Direct access to `/homeassistant`, `/share`, and `/media`.
 - Read-only access to `/ssl` and `/backup`.

@@ -56,6 +56,21 @@ configuration:
     description: >-
       Segundos máximos para esperar la actualización opcional de Codex CLI al
       iniciar. Solo aplica cuando la actualización automática está habilitada.
+  ssh_enabled:
+    name: Habilitar SSH
+    description: >-
+      Inicia OpenSSH para el usuario codex sin privilegios. También debes
+      mapear el puerto 22 del contenedor en la sección Red.
+  ssh_password:
+    name: Contraseña SSH
+    description: >-
+      Contraseña del usuario SSH codex. Déjala vacía para deshabilitar el
+      acceso por contraseña. El acceso con clave pública puede usarse a la vez.
+  authorized_keys:
+    name: Claves SSH autorizadas
+    description: >-
+      Claves públicas autorizadas para iniciar sesión como codex. Añade una
+      clave pública completa por elemento de la lista.
   mcp_servers:
     name: Servidores MCP remotos
     description: >-
@@ -76,7 +91,8 @@ configuration:
     name: Variables de entorno
     description: >-
       Variables de entorno adicionales para Codex y sus servidores MCP. Los
-      valores se tratan como secretos y están disponibles en sesiones de Codex.
+      valores se tratan como secretos y están disponibles en sesiones de
+      terminal y SSH de Codex.
     fields:
       name:
         name: Nombre de la variable
@@ -87,3 +103,4 @@ configuration:
 
 network:
   7681/tcp: Terminal Web (ttyd)
+  22/tcp: Servidor SSH (deshabilitado por defecto)
