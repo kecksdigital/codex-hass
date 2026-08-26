@@ -1,0 +1,30 @@
+Port 22
+AddressFamily any
+ListenAddress 0.0.0.0
+ListenAddress ::
+
+HostKey /data/ssh/ssh_host_ed25519_key
+HostKey /data/ssh/ssh_host_rsa_key
+PidFile /tmp/codex/sshd.pid
+
+PermitRootLogin no
+AllowUsers codex
+StrictModes yes
+PermitEmptyPasswords no
+PasswordAuthentication yes
+PubkeyAuthentication yes
+AuthorizedKeysFile .ssh/authorized_keys
+KbdInteractiveAuthentication no
+
+X11Forwarding no
+AllowAgentForwarding no
+AllowTcpForwarding no
+AllowStreamLocalForwarding no
+DisableForwarding yes
+GatewayPorts no
+PermitTunnel no
+PermitUserEnvironment no
+PermitUserRC no
+
+PrintMotd no
+UseDNS no

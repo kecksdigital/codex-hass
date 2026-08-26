@@ -56,6 +56,51 @@ configuration:
       Segundos máximos para aguardar a atualização opcional do Codex CLI na
       inicialização. Aplica-se apenas quando a atualização automática está
       habilitada.
+  ssh_enabled:
+    name: Habilitar SSH
+    description: >-
+      Inicia o OpenSSH para o usuário codex sem privilégios. Você também deve
+      mapear a porta 22 do contêiner na seção Rede.
+  ssh_password:
+    name: Senha SSH
+    description: >-
+      Senha do usuário SSH codex. Deixe vazia para desabilitar o login por
+      senha. O login por chave pública pode ser usado ao mesmo tempo.
+  authorized_keys:
+    name: Chaves SSH autorizadas
+    description: >-
+      Chaves públicas autorizadas para login como codex. Adicione uma chave
+      pública completa por item da lista.
+  mcp_servers:
+    name: Servidores MCP remotos
+    description: >-
+      Servidores MCP HTTP Streamable que serão adicionados ao Codex. Para cada
+      bearer token não vazio, o App cria automaticamente uma variável de
+      ambiente protegida e configura bearer_token_env_var para o servidor.
+    fields:
+      name:
+        name: Nome do servidor
+        description: Nome exclusivo do servidor MCP do Codex. homeassistant é reservado.
+      url:
+        name: URL do servidor
+        description: Endpoint MCP HTTP Streamable iniciado por http:// ou https://.
+      bearer_token:
+        name: Bearer token
+        description: Token opcional que o App passa automaticamente por uma variável de ambiente.
+  environment_variables:
+    name: Variáveis de ambiente
+    description: >-
+      Variáveis de ambiente adicionais para o Codex e seus servidores MCP. Os
+      valores são tratados como segredos e ficam disponíveis nas sessões de
+      terminal e SSH do Codex.
+    fields:
+      name:
+        name: Nome da variável
+        description: Nome de variável de ambiente com letras, números e sublinhados.
+      value:
+        name: Valor da variável
+        description: Valor disponibilizado ao Codex e aos servidores MCP.
 
 network:
   7681/tcp: Terminal Web (ttyd)
+  22/tcp: Servidor SSH (desabilitado por padrão)

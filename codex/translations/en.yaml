@@ -53,6 +53,51 @@ configuration:
     description: >-
       Maximum seconds to wait for the optional Codex CLI startup update.
       Applies only when auto-update is enabled.
+  ssh_enabled:
+    name: Enable SSH
+    description: >-
+      Start OpenSSH for the unprivileged codex user. You must also map
+      container port 22 in the Network section before it is reachable.
+  ssh_password:
+    name: SSH Password
+    description: >-
+      Password for the codex SSH user. Leave empty to disable password login.
+      Public-key login can be used at the same time.
+  authorized_keys:
+    name: SSH Authorized Keys
+    description: >-
+      Public keys allowed to log in as codex. Add one complete public key per
+      list entry.
+  mcp_servers:
+    name: Remote MCP Servers
+    description: >-
+      Streamable HTTP MCP servers to add to Codex. For each non-empty bearer
+      token, the App automatically creates a protected environment variable
+      and configures bearer_token_env_var for that server.
+    fields:
+      name:
+        name: Server Name
+        description: Unique Codex MCP server name. The name homeassistant is reserved.
+      url:
+        name: Server URL
+        description: Streamable HTTP MCP endpoint beginning with http:// or https://.
+      bearer_token:
+        name: Bearer Token
+        description: Optional token; the App automatically passes it through an environment variable.
+  environment_variables:
+    name: Environment Variables
+    description: >-
+      Additional environment variables for Codex and its MCP servers. Values
+      are treated as secrets in the App options and are available to Codex
+      terminal and SSH sessions.
+    fields:
+      name:
+        name: Variable Name
+        description: Environment variable name using letters, digits, and underscores.
+      value:
+        name: Variable Value
+        description: Value made available to Codex and its MCP servers.
 
 network:
   7681/tcp: Web Terminal (ttyd)
+  22/tcp: SSH server (disabled by default)

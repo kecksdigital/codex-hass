@@ -22,16 +22,18 @@ Manual install:
 
 - OpenAI Codex CLI running in Home Assistant.
 - A web terminal served through Home Assistant ingress.
+- Optional LAN/VPN SSH access as the same unprivileged `codex` user.
 - Prebuilt GHCR images for faster installs and Home Assistant updates.
 - Direct access to `/homeassistant`, `/share`, and `/media`.
 - Read-only access to `/ssl` and `/backup`.
 - Optional Home Assistant MCP integration for entity lookup and service calls.
+- App options for additional remote MCP servers, bearer tokens, and environment variables.
 - Persistent Codex auth and settings under `/data/codex-home`.
-- Home Assistant options for model default, sandbox access, MCP, terminal theme, and session persistence.
+- Home Assistant options for model default, sandbox access, MCP servers, environment variables, terminal theme, and session persistence.
 
 ## Authentication
 
-Codex authentication happens inside the terminal. Home Assistant does not store your OpenAI API key, ChatGPT session, or Codex access token in App options.
+Codex authentication normally happens inside the terminal, so Home Assistant does not need to store your OpenAI API key, ChatGPT session, or Codex access token in App options. Credentials deliberately added through the optional MCP or environment-variable settings are stored as App options.
 
 On first launch, Codex prompts you to sign in. The Codex CLI supports ChatGPT sign-in for subscription access and API-key sign-in for usage-based access. On headless or remote systems, use the Codex device-code login option if the normal browser callback flow cannot complete.
 
