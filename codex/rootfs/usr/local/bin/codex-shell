@@ -28,7 +28,7 @@ repair_codex_config() {
 if command -v codex >/dev/null 2>&1; then
   while true; do
     repair_codex_config
-    codex
+    codex -c 'tui.alternate_screen="never"'
     codex_status=$?
     if [[ "$codex_status" -eq 0 ]]; then
       break

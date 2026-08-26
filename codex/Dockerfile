@@ -94,6 +94,12 @@ set -s set-clipboard on
 set -g allow-passthrough on
 bind -n WheelUpPane if-shell -F -t = "#{mouse_any_flag}" "send-keys -M" "if -Ft= '#{pane_in_mode}' 'send-keys -M' 'select-pane -t=; copy-mode -e; send-keys -M'"
 bind -n WheelDownPane select-pane -t= \; send-keys -M
+bind -n PPage copy-mode -e \; send-keys -X page-up
+bind -n NPage if-shell -F -t = "#{pane_in_mode}" "send-keys -X page-down" "send-keys NPage"
+bind -T copy-mode PPage send-keys -X page-up
+bind -T copy-mode NPage send-keys -X page-down
+bind -T copy-mode-vi PPage send-keys -X page-up
+bind -T copy-mode-vi NPage send-keys -X page-down
 EOF
 
 RUN ln -sf /etc/tmux.conf /root/.tmux.conf

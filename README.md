@@ -22,6 +22,7 @@ Manual install:
 
 - OpenAI Codex CLI running in Home Assistant.
 - A web terminal served through Home Assistant ingress.
+- A touch-friendly mobile key bar with `Esc`, `Tab`, `Ctrl`, `Alt`, arrow, and page-scroll keys.
 - Prebuilt GHCR images for faster installs and Home Assistant updates.
 - Direct access to `/homeassistant`, `/share`, and `/media`.
 - Read-only access to `/ssl` and `/backup`.

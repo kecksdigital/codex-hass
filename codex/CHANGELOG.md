@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.16] - 2026-08-26
+
+### Added
+- Add a touch-friendly mobile terminal key bar with `Esc`, `Tab`, `Ctrl`, `Alt`, and arrow keys
+- Let `Ctrl` and `Alt` modify the next soft-keyboard or key-bar input, including combinations such as `Ctrl+C` and modified arrow keys
+- Add direct `PgUp` and `PgDn` controls to the mobile terminal key bar
+
+### Fixed
+- Preserve Codex responses in the web terminal scrollback by disabling the alternate screen for web sessions
+- Convert vertical touch gestures into deterministic page navigation instead of relying on mobile WebView scrolling
+- Make `PgUp`, `PgDn`, and swipe gestures enter and control tmux copy mode when session persistence is enabled
+
 ## [0.2.15] - 2026-05-31
 
 ### Fixed

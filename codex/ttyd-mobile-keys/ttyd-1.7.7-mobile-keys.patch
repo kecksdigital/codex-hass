@@ -1,0 +1,323 @@
+diff --git a/html/src/components/terminal/index.tsx b/html/src/components/terminal/index.tsx
+index b42bf15..39ab09c 100644
+--- a/html/src/components/terminal/index.tsx
++++ b/html/src/components/terminal/index.tsx
+@@ -11,15 +11,38 @@ interface Props extends XtermOptions {
+
+ interface State {
+     modal: boolean;
++    ctrl: boolean;
++    alt: boolean;
+ }
+
++interface MobileKey {
++    label: string;
++    ariaLabel: string;
++    value?: string;
++    arrow?: string;
++    page?: 'up' | 'down';
++}
++
++const mobileKeys: MobileKey[] = [
++    { label: 'Esc', ariaLabel: 'Escape', value: '\x1b' },
++    { label: 'Tab', ariaLabel: 'Tab', value: '\t' },
++    { label: '\u2190', ariaLabel: 'Left arrow', value: '\x1b[D', arrow: 'D' },
++    { label: '\u2193', ariaLabel: 'Down arrow', value: '\x1b[B', arrow: 'B' },
++    { label: '\u2191', ariaLabel: 'Up arrow', value: '\x1b[A', arrow: 'A' },
++    { label: '\u2192', ariaLabel: 'Right arrow', value: '\x1b[C', arrow: 'C' },
++    { label: 'PgUp', ariaLabel: 'Scroll one page up', value: '\x1b[5~', page: 'up' },
++    { label: 'PgDn', ariaLabel: 'Scroll one page down', value: '\x1b[6~', page: 'down' },
++];
++
+ export class Terminal extends Component<Props, State> {
+     private container: HTMLElement;
+     private xterm: Xterm;
++    private touchStartY?: number;
+
+     constructor(props: Props) {
+         super();
+-        this.xterm = new Xterm(props, this.showModal);
++        this.state = { modal: false, ctrl: false, alt: false };
++        this.xterm = new Xterm(props, this.showModal, this.transformInput);
+     }
+
+     async componentDidMount() {
+@@ -32,9 +55,23 @@ export class Terminal extends Component<Props, State> {
+         this.xterm.dispose();
+     }
+
+-    render({ id }: Props, { modal }: State) {
++    render({ id }: Props, { modal, ctrl, alt }: State) {
+         return (
+-            <div id={id} ref={c => (this.container = c as HTMLElement)}>
++            <div id={id}>
++                <div
++                    class="terminal-viewport"
++                    ref={c => (this.container = c as HTMLElement)}
++                    onTouchStart={this.startTouchScroll}
++                    onTouchMove={this.continueTouchScroll}
++                    onTouchEnd={this.finishTouchScroll}
++                    onTouchCancel={this.cancelTouchScroll}
++                />
++                <nav class="mobile-keys" aria-label="Terminal special keys">
++                    {mobileKeys.slice(0, 2).map(this.renderMobileKey)}
++                    {this.renderModifier('Ctrl', ctrl, 'ctrl')}
++                    {this.renderModifier('Alt', alt, 'alt')}
++                    {mobileKeys.slice(2).map(this.renderMobileKey)}
++                </nav>
+                 <Modal show={modal}>
+                     <label class="file-label">
+                         <input onChange={this.sendFile} class="file-input" type="file" multiple />
+@@ -45,6 +82,138 @@ export class Terminal extends Component<Props, State> {
+         );
+     }
+
++    @bind
++    private renderMobileKey(key: MobileKey) {
++        return (
++            <button
++                type="button"
++                tabIndex={-1}
++                class="mobile-key"
++                aria-label={key.ariaLabel}
++                onPointerDown={event => this.pressMobileKey(event, key)}
++                onClick={event => this.clickMobileKey(event, key)}
++            >
++                {key.label}
++            </button>
++        );
++    }
++
++    private renderModifier(label: string, active: boolean, modifier: 'ctrl' | 'alt') {
++        return (
++            <button
++                type="button"
++                tabIndex={-1}
++                class={`mobile-key mobile-key--modifier${active ? ' is-active' : ''}`}
++                aria-label={label}
++                aria-pressed={active}
++                onPointerDown={event => this.pressModifier(event, modifier)}
++                onClick={event => this.clickModifier(event, modifier)}
++            >
++                {label}
++            </button>
++        );
++    }
++
++    private pressMobileKey(event: PointerEvent, key: MobileKey) {
++        event.preventDefault();
++        this.sendMobileKey(key);
++    }
++
++    private clickMobileKey(event: MouseEvent, key: MobileKey) {
++        if (event.detail === 0) this.sendMobileKey(key);
++    }
++
++    private pressModifier(event: PointerEvent, modifier: 'ctrl' | 'alt') {
++        event.preventDefault();
++        this.toggleModifier(modifier);
++    }
++
++    private clickModifier(event: MouseEvent, modifier: 'ctrl' | 'alt') {
++        if (event.detail === 0) this.toggleModifier(modifier);
++    }
++
++    private toggleModifier(modifier: 'ctrl' | 'alt') {
++        this.setState(state => ({ [modifier]: !state[modifier] }));
++        this.xterm.focus();
++    }
++
++    private sendMobileKey(key: MobileKey) {
++        if (key.page) {
++            this.clearModifiers();
++            this.xterm.sendData(key.value || '');
++            this.xterm.focus();
++            return;
++        }
++
++        let data = key.value || '';
++        const { ctrl, alt } = this.state;
++
++        if (key.arrow && (ctrl || alt)) {
++            const modifier = 1 + (alt ? 2 : 0) + (ctrl ? 4 : 0);
++            data = `\x1b[1;${modifier}${key.arrow}`;
++            this.clearModifiers();
++        } else {
++            data = this.transformInput(data);
++        }
++
++        this.xterm.sendData(data);
++        this.xterm.focus();
++    }
++
++    @bind
++    private startTouchScroll(event: TouchEvent) {
++        if (event.touches.length === 1) this.touchStartY = event.touches[0].clientY;
++    }
++
++    @bind
++    private continueTouchScroll(event: TouchEvent) {
++        if (this.touchStartY !== undefined && event.touches.length === 1) event.preventDefault();
++    }
++
++    @bind
++    private finishTouchScroll(event: TouchEvent) {
++        if (this.touchStartY === undefined || event.changedTouches.length !== 1) return;
++
++        const distance = event.changedTouches[0].clientY - this.touchStartY;
++        this.touchStartY = undefined;
++        if (Math.abs(distance) < 32) return;
++
++        const page = distance > 0 ? 'up' : 'down';
++        const key = mobileKeys.find(candidate => candidate.page === page);
++        if (key) this.sendMobileKey(key);
++    }
++
++    @bind
++    private cancelTouchScroll() {
++        this.touchStartY = undefined;
++    }
++
++    @bind
++    private transformInput(data: string) {
++        const { ctrl, alt } = this.state;
++        if (!ctrl && !alt) return data;
++
++        let transformed = ctrl ? this.toControlCharacter(data) : data;
++        if (alt) transformed = `\x1b${transformed}`;
++        this.clearModifiers();
++        return transformed;
++    }
++
++    private toControlCharacter(data: string) {
++        if (data.length !== 1) return data;
++
++        const code = data.charCodeAt(0);
++        if (code >= 64 && code <= 95) return String.fromCharCode(code - 64);
++        if (code >= 97 && code <= 122) return String.fromCharCode(code - 96);
++        if (data === ' ') return '\x00';
++        if (data === '?') return '\x7f';
++        return data;
++    }
++
++    private clearModifiers() {
++        if (this.state.ctrl || this.state.alt) this.setState({ ctrl: false, alt: false });
++    }
++
+     @bind
+     showModal() {
+         this.setState({ modal: true });
+diff --git a/html/src/components/terminal/xterm/index.ts b/html/src/components/terminal/xterm/index.ts
+index b643f92..b978b33 100644
+--- a/html/src/components/terminal/xterm/index.ts
++++ b/html/src/components/terminal/xterm/index.ts
+@@ -101,7 +101,8 @@ export class Xterm {
+
+     constructor(
+         private options: XtermOptions,
+-        private sendCb: () => void
++        private sendCb: () => void,
++        private transformInput: (data: string) => string = data => data
+     ) {}
+
+     dispose() {
+@@ -122,6 +123,11 @@ export class Xterm {
+         this.zmodemAddon?.sendFile(files);
+     }
+
++    @bind
++    public focus() {
++        this.terminal?.focus();
++    }
++
+     @bind
+     public async refreshToken() {
+         try {
+@@ -173,7 +179,7 @@ export class Xterm {
+                 }
+             })
+         );
+-        register(terminal.onData(data => sendData(data)));
++        register(terminal.onData(data => sendData(this.transformInput(data))));
+         register(terminal.onBinary(data => sendData(Uint8Array.from(data, v => v.charCodeAt(0)))));
+         register(
+             terminal.onResize(({ cols, rows }) => {
+diff --git a/html/src/style/index.scss b/html/src/style/index.scss
+index 0f9244b..9de6188 100644
+--- a/html/src/style/index.scss
++++ b/html/src/style/index.scss
+@@ -7,12 +7,74 @@ body {
+ }
+
+ #terminal-container {
++  display: flex;
++  flex-direction: column;
+   width: auto;
+   height: 100%;
+   margin: 0 auto;
+   padding: 0;
++  .terminal-viewport {
++    flex: 1 1 auto;
++    min-height: 0;
++    overflow: hidden;
++  }
+   .terminal {
+     padding: 5px;
+     height: calc(100% - 10px);
+   }
+ }
++
++.mobile-keys {
++  display: none;
++}
++
++@media (hover: none), (pointer: coarse), (max-width: 768px) {
++  .terminal-viewport,
++  .terminal-viewport .xterm {
++    touch-action: none;
++    overscroll-behavior: contain;
++  }
++
++  .mobile-keys {
++    box-sizing: border-box;
++    display: flex;
++    flex: 0 0 auto;
++    gap: 6px;
++    width: 100%;
++    overflow-x: auto;
++    padding: 5px max(6px, env(safe-area-inset-right)) max(5px, env(safe-area-inset-bottom))
++      max(6px, env(safe-area-inset-left));
++    background: #181825;
++    border-top: 1px solid #45475a;
++    scrollbar-width: none;
++    -webkit-overflow-scrolling: touch;
++  }
++
++  .mobile-keys::-webkit-scrollbar {
++    display: none;
++  }
++
++  .mobile-key {
++    box-sizing: border-box;
++    flex: 0 0 auto;
++    min-width: 44px;
++    height: 38px;
++    margin: 0;
++    padding: 0 10px;
++    border: 1px solid #585b70;
++    border-radius: 7px;
++    color: #cdd6f4;
++    background: #313244;
++    font: 600 15px/1 Monaco, Consolas, monospace;
++    touch-action: manipulation;
++    user-select: none;
++    -webkit-tap-highlight-color: transparent;
++  }
++
++  .mobile-key:active,
++  .mobile-key.is-active {
++    color: #11111b;
++    background: #89dceb;
++    border-color: #89dceb;
++  }
++}
