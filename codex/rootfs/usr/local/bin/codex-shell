@@ -19,7 +19,8 @@ repair_codex_config() {
       "${CODEX_DEFAULT_MODEL:-}" \
       "${CODEX_ENABLE_MCP:-true}" \
       "${CODEX_PERMISSIONS:-workspace}" \
-      "${CODEX_APPROVAL_POLICY:-on-request}" || {
+      "${CODEX_APPROVAL_POLICY:-on-request}" \
+      "${CODEX_MCP_CONFIG:-/data/codex-managed/mcp-servers.json}" || {
         echo "[WARN] Unable to repair Codex config before launch." >&2
       }
   fi

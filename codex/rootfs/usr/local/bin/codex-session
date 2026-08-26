@@ -64,6 +64,8 @@ default_model="${CODEX_DEFAULT_MODEL:-}"
 enable_mcp="${CODEX_ENABLE_MCP:-true}"
 codex_permissions="${CODEX_PERMISSIONS:-workspace}"
 codex_approval_policy="${CODEX_APPROVAL_POLICY:-on-request}"
+managed_mcp_config="${CODEX_MCP_CONFIG:-${managed_root}/mcp-servers.json}"
+managed_mcp_environment="${CODEX_MCP_ENVIRONMENT:-${managed_root}/mcp-environment.json}"
 session_uid=22000
 system_user="codex"
 session_gid=0
@@ -95,7 +97,13 @@ cleanup_config_lock() {
 
 trap cleanup_config_lock EXIT
 
-/usr/local/bin/codex-merge-config "${user_codex_home}/config.toml" "$default_model" "$enable_mcp" "$codex_permissions" "$codex_approval_policy"
+/usr/local/bin/codex-merge-config \
+  "${user_codex_home}/config.toml" \
+  "$default_model" \
+  "$enable_mcp" \
+  "$codex_permissions" \
+  "$codex_approval_policy" \
+  "$managed_mcp_config"
 merge_status=$?
 if [[ "$merge_status" -ne 0 ]]; then
   cleanup_config_lock
@@ -135,6 +143,8 @@ session_env=(
   "CODEX_ENABLE_MCP=$enable_mcp"
   "CODEX_PERMISSIONS=$codex_permissions"
   "CODEX_APPROVAL_POLICY=$codex_approval_policy"
+  "CODEX_MCP_CONFIG=$managed_mcp_config"
+  "CODEX_MCP_ENVIRONMENT=$managed_mcp_environment"
   "CODEX_USER_ID=$safe_user"
   "CODEX_WORK_DIR=$work_dir"
   "LOGNAME=$system_user"
@@ -146,6 +156,14 @@ session_env=(
   "TMUX_TMPDIR=$user_root"
   "USER=$system_user"
 )
+
+if [[ -r "$managed_mcp_environment" ]]; then
+  while IFS= read -r -d '' env_name && IFS= read -r -d '' env_value; do
+    if [[ "$env_name" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+      session_env+=("$env_name=$env_value")
+    fi
+  done < <(jq -j '.[] | .name, "\u0000", .value, "\u0000"' "$managed_mcp_environment")
+fi
 
 if [[ "$session_persist" == "true" ]]; then
   tmux_socket="${user_root}/tmux.sock"
