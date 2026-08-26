@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.16] - 2026-08-26
+
+### Fixed
+- Install optional startup-time Codex CLI updates into the persistent unprivileged npm prefix instead of the AppArmor-protected image prefix
+- Allow updated Codex CLI binaries and their Node.js packages to execute under the AppArmor profile
+- Fall back to the image-installed Codex CLI if a persisted update cannot execute
+
 ## [0.2.15] - 2026-05-31
 
 ### Fixed

@@ -74,20 +74,29 @@ unset SUPERVISOR_TOKEN
 
 if [[ "$auto_update_codex" == "true" ]]; then
   update_log="/tmp/codex/codex-update.log"
-  root_npm_cache="/tmp/codex/npm-root-cache"
-  mkdir -p "$root_npm_cache"
-  chmod 700 "$root_npm_cache"
+  update_user_root="$CODEX_STATE_ROOT/users/anonymous"
+  update_npm_cache="$update_user_root/.npm"
+  update_npm_prefix="$update_user_root/.local"
+  update_npm_bin="$update_npm_prefix/bin"
+  mkdir -p "$update_npm_cache" "$update_npm_bin"
+  chown -R 22000:0 "$update_user_root"
+  chmod 700 "$update_user_root" "$update_npm_cache" "$update_npm_prefix"
+  chmod 755 "$update_npm_bin"
   echo "[INFO] Updating Codex CLI with npm install -g @openai/codex@latest (timeout ${codex_update_timeout}s)"
-  if timeout "$codex_update_timeout" env NPM_CONFIG_CACHE="$root_npm_cache" npm install -g @openai/codex@latest >"$update_log" 2>&1; then
-    echo "[INFO] Codex CLI update completed: $(codex --version 2>/dev/null || echo unknown)"
+  if timeout "$codex_update_timeout" su-exec 22000:0 env \
+    "HOME=$update_user_root" \
+    "NPM_CONFIG_CACHE=$update_npm_cache" \
+    "NPM_CONFIG_PREFIX=$update_npm_prefix" \
+    "PATH=$update_npm_bin:${PATH}" \
+    npm install -g @openai/codex@latest >"$update_log" 2>&1; then
+    echo "[INFO] Codex CLI update completed: $("$update_npm_bin/codex" --version 2>/dev/null || echo unknown)"
   else
     update_status=$?
     echo "[WARN] Codex CLI update failed or timed out with exit code ${update_status}; continuing with installed version"
     tail -n 10 "$update_log" 2>/dev/null | sed 's/^/[WARN] update log: /' || true
   fi
-  rm -rf "$root_npm_cache"
 else
-  echo "[INFO] auto_update_codex disabled - using image-installed Codex CLI: $(codex --version 2>/dev/null || echo unknown)"
+  echo "[INFO] Codex CLI auto-update disabled - using image-installed version: $(codex --version 2>/dev/null || echo unknown)"
 fi
 
 cat > "$CODEX_MANAGED_ROOT/AGENTS.md" <<'EOF'
